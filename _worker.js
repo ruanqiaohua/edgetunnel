@@ -1923,9 +1923,9 @@ function 渲染博客页面(url) {
 
 > 你可以把自己的 Markdown 内容托管在任意可公开访问的地址，然后通过 URL 参数加载。
 
-\\`\\`\\`bash
+\`\`\`bash
 curl "https://your-domain/blog?md=https://example.com/post.md"
-\\`\\`\\`
+\`\`\`
 `;
 	const 默认文章路径 = '/blog/post.md';
 	const 当前路径 = url.pathname.toLowerCase();
