@@ -48,6 +48,8 @@ export default {
 			return await 处理XHTTP请求(request, userID);
 		} else {
 			if (url.protocol === 'http:') return Response.redirect(url.href.replace(`http://${url.hostname}`, `https://${url.hostname}`), 301);
+			if (访问路径 === 'blog' || 访问路径 === 'blog/') return new Response(渲染博客页面(url), { status: 200, headers: { 'Content-Type': 'text/html;charset=utf-8', 'Cache-Control': 'public, max-age=300' } });
+			if (访问路径.startsWith('blog/') && 访问路径.endsWith('.md')) return new Response(读取博客Markdown(url.pathname), { status: 200, headers: { 'Content-Type': 'text/markdown;charset=utf-8', 'Cache-Control': 'public, max-age=300' } });
 			if (!管理员密码) return fetch(Pages静态页面 + '/noADMIN').then(r => { const headers = new Headers(r.headers); headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate'); headers.set('Pragma', 'no-cache'); headers.set('Expires', '0'); return new Response(r.body, { status: 404, statusText: r.statusText, headers }) });
 			if (env.KV && typeof env.KV.get === 'function') {
 				const 区分大小写访问路径 = url.pathname.slice(1);
@@ -1884,6 +1886,146 @@ function 获取传输路径参数值(配置 = {}, 节点路径 = '/', 作为优�
 	const 路径值 = 作为优选订阅生成器 ? '/' : (配置.随机路径 ? 随机路径(节点路径) : 节点路径);
 	if (配置.传输协议 !== 'grpc') return 路径值;
 	return 路径值.split('?')[0] || '/';
+}
+
+function 读取博客Markdown(路径名 = '') {
+	const 文章映射 = {
+		'/blog/post.md': `# EdgeTunnel 博客示例
+
+欢迎来到静态博客页面，这里演示 \`.md\` 内容渲染。
+
+## 功能说明
+
+- 访问 \`/blog\` 查看博客主页
+- 访问 \`/blog/post.md\` 返回 Markdown 原文
+- 支持 \`/blog?md=https://example.com/your-post.md\` 加载远程文章
+
+> 此页面是独立博客模块，不影响原有 /admin /sub /login 业务路径。
+
+\`\`\`bash
+curl "https://your-domain/blog/post.md"
+\`\`\`
+`
+	};
+	return 文章映射[路径名.toLowerCase()] || '# 404\\n\\n未找到该 Markdown 文章。';
+}
+
+function 渲染博客页面(url) {
+	const 示例文章 = `# 欢迎来到 EdgeTunnel 博客
+
+这是一个**静态主页**示例，支持读取和渲染 \\.md 文件。
+
+## 已实现能力
+
+- 访问 \`/blog\` 显示博客首页
+- 访问 \`/blog/post.md\` 自动渲染 Markdown
+- 支持标题、列表、引用、代码块、链接
+
+> 你可以把自己的 Markdown 内容托管在任意可公开访问的地址，然后通过 URL 参数加载。
+
+\`\`\`bash
+curl "https://your-domain/blog?md=https://example.com/post.md"
+\`\`\`
+`;
+	const 默认文章路径 = '/blog/post.md';
+	const 当前路径 = url.pathname.toLowerCase();
+	const 文章地址 = url.searchParams.get('md') || (当前路径.endsWith('.md') ? url.pathname : 默认文章路径);
+
+	return `<!doctype html>
+<html lang="zh-CN">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>EdgeTunnel Blog</title>
+	<style>
+		:root { color-scheme: light dark; }
+		body { margin: 0; font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0b1020; color: #e5e7eb; }
+		a { color: #60a5fa; text-decoration: none; }
+		a:hover { text-decoration: underline; }
+		.layout { max-width: 1080px; margin: 0 auto; padding: 24px 16px 40px; }
+		.header { margin-bottom: 20px; }
+		.subtitle { opacity: 0.8; }
+		.card { background: #131a2b; border: 1px solid #233153; border-radius: 14px; padding: 20px; }
+		pre { background: #0d1324; padding: 12px; border-radius: 10px; overflow: auto; }
+		code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+		blockquote { border-left: 4px solid #334155; margin: 0; padding: 0 12px; color: #cbd5e1; }
+		ul { padding-left: 20px; }
+		.footer { margin-top: 18px; font-size: 13px; opacity: 0.75; }
+		#error { color: #fda4af; white-space: pre-wrap; }
+	</style>
+</head>
+<body>
+	<div class="layout">
+		<header class="header">
+			<h1>📝 EdgeTunnel 静态博客</h1>
+			<p class="subtitle">独立博客界面（/blog），不影响 /admin、/sub 等主功能。</p>
+		</header>
+		<main class="card" id="content">加载中...</main>
+		<p class="footer">当前 Markdown 来源：<code id="source"></code></p>
+		<details class="footer"><summary>如何使用</summary>访问 <code>/blog?md=https://example.com/article.md</code> 或 <code>/blog/post.md</code>。</details>
+		<pre id="error" hidden></pre>
+	</div>
+	<script>
+		const fallbackMarkdown = ${JSON.stringify(示例文章)};
+		const source = ${JSON.stringify(文章地址)};
+		const BT = String.fromCharCode(96);
+		document.getElementById('source').textContent = source;
+
+		function esc(str) { return str.replace(/[&<>"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch])); }
+		function inline(text) {
+			return esc(text)
+				.replace(new RegExp(BT + '([^' + BT + ']+)' + BT, 'g'), '<code>$1</code>')
+				.replace(/\\*\\*([^*]+)\\*\\*/g, '<strong>$1</strong>')
+				.replace(/\\*([^*]+)\\*/g, '<em>$1</em>')
+				.replace(/\\[([^\\]]+)\\]\\((https?:[^)]+)\\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+		}
+		function markdownToHtml(markdown) {
+			const lines = markdown.replace(/\\r/g, '').split('\\n');
+			let html = '', inCode = false, inList = false;
+			for (const line of lines) {
+				if (line.startsWith(BT.repeat(3))) {
+					if (!inCode) { html += '<pre><code>'; inCode = true; }
+					else { html += '</code></pre>'; inCode = false; }
+					continue;
+				}
+				if (inCode) { html += esc(line) + '\\n'; continue; }
+				if (/^\\s*[-*]\\s+/.test(line)) {
+					if (!inList) { html += '<ul>'; inList = true; }
+					html += '<li>' + inline(line.replace(/^\\s*[-*]\\s+/, '')) + '</li>';
+					continue;
+				}
+				if (inList) { html += '</ul>'; inList = false; }
+				if (/^###\\s+/.test(line)) html += '<h3>' + inline(line.replace(/^###\\s+/, '')) + '</h3>';
+				else if (/^##\\s+/.test(line)) html += '<h2>' + inline(line.replace(/^##\\s+/, '')) + '</h2>';
+				else if (/^#\\s+/.test(line)) html += '<h1>' + inline(line.replace(/^#\\s+/, '')) + '</h1>';
+				else if (/^>\\s?/.test(line)) html += '<blockquote><p>' + inline(line.replace(/^>\\s?/, '')) + '</p></blockquote>';
+				else if (line.trim() === '') html += '';
+				else html += '<p>' + inline(line) + '</p>';
+			}
+			if (inList) html += '</ul>';
+			if (inCode) html += '</code></pre>';
+			return html || '<p>暂无内容。</p>';
+		}
+
+		(async () => {
+			const target = document.getElementById('content');
+			const err = document.getElementById('error');
+			let markdown = fallbackMarkdown;
+			if (source) {
+				try {
+					const resp = await fetch(source);
+					if (!resp.ok) throw new Error('HTTP ' + resp.status);
+					markdown = await resp.text();
+				} catch (e) {
+					err.hidden = false;
+					err.textContent = 'Markdown 加载失败，已回退到示例内容。\\n' + e.message;
+				}
+			}
+			target.innerHTML = markdownToHtml(markdown);
+		})();
+	</script>
+</body>
+</html>`;
 }
 
 function log(...args) {
