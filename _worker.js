@@ -1968,12 +1968,13 @@ curl "https://your-domain/blog?md=https://example.com/post.md"
 	<script>
 		const fallbackMarkdown = ${JSON.stringify(示例文章)};
 		const source = ${JSON.stringify(文章地址)};
+		const BT = String.fromCharCode(96);
 		document.getElementById('source').textContent = source;
 
 		function esc(str) { return str.replace(/[&<>"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch])); }
 		function inline(text) {
 			return esc(text)
-				.replace(/`([^`]+)`/g, '<code>$1</code>')
+				.replace(new RegExp(BT + '([^' + BT + ']+)' + BT, 'g'), '<code>$1</code>')
 				.replace(/\\*\\*([^*]+)\\*\\*/g, '<strong>$1</strong>')
 				.replace(/\\*([^*]+)\\*/g, '<em>$1</em>')
 				.replace(/\\[([^\\]]+)\\]\\((https?:[^)]+)\\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
@@ -1982,7 +1983,7 @@ curl "https://your-domain/blog?md=https://example.com/post.md"
 			const lines = markdown.replace(/\\r/g, '').split('\\n');
 			let html = '', inCode = false, inList = false;
 			for (const line of lines) {
-				if (line.startsWith('```')) {
+				if (line.startsWith(BT.repeat(3))) {
 					if (!inCode) { html += '<pre><code>'; inCode = true; }
 					else { html += '</code></pre>'; inCode = false; }
 					continue;
