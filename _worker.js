@@ -374,7 +374,23 @@ export default {
 					const authCookie = cookies.split(';').find(c => c.trim().startsWith('auth='))?.split('=')[1];
 					if (authCookie && authCookie == await MD5MD5(UA + 加密秘钥 + 管理员密码)) return fetch(new Request('https://speed.cloudflare.com/locations', { headers: { 'Referer': 'https://speed.cloudflare.com/' } }));
 				} else if (访问路径 === 'robots.txt') return new Response('User-agent: *\nDisallow: /', { status: 200, headers: { 'Content-Type': 'text/plain; charset=UTF-8' } });
-			} else if (!envUUID) return fetch(Pages静态页面 + '/noKV').then(r => { const headers = new Headers(r.headers); headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate'); headers.set('Pragma', 'no-cache'); headers.set('Expires', '0'); return new Response(r.body, { status: 404, statusText: r.statusText, headers }) });
+			} else if (!envUUID) {
+				return fetch(Pages静态页面 + '/noKV').then(r => {
+					const headers = new Headers(r.headers);
+					headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+					headers.set('Pragma', 'no-cache');
+					headers.set('Expires', '0');
+					return new Response(r.body, { status: 404, statusText: r.statusText, headers });
+				}).catch(() => new Response(未绑定KV命名空间提示(url.host), {
+					status: 404,
+					headers: {
+						'Content-Type': 'text/plain; charset=UTF-8',
+						'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+						'Pragma': 'no-cache',
+						'Expires': '0'
+					}
+				}));
+			}
 		}
 
 		let 伪装页URL = env.URL || 'nginx';
@@ -3585,6 +3601,10 @@ async function nginx() {
 	</body>
 	</html>
 	`
+}
+
+function 未绑定KV命名空间提示(hostname) {
+	return `配置错误：未绑定 KV 命名空间\n\n当前域名：${hostname}\n请在 Cloudflare Workers / Pages 控制台绑定 KV 命名空间，且变量名必须为 KV（区分大小写）。\n完成后重新部署并访问 /admin。\n参考：https://github.com/cmliu/edgetunnel#-快速部署`;
 }
 
 async function html1101(host, 访问IP) {

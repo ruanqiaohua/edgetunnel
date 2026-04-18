@@ -3,6 +3,7 @@ main = "_worker.js"
 compatibility_date = "2025-11-04"
 keep_vars = true
 
-#[[kv_namespaces]]
-#binding = "KV"			#KV绑定名默认不可修改
-#id = ""				#KV数据库id
+# 部署前请创建 KV 命名空间并绑定为 KV（否则会出现“未绑定 KV 命名空间”错误）
+[[kv_namespaces]]
+binding = "KV"			# KV 绑定名默认不可修改
+id = "889e06a95fb04d08a37b7ecf8ccbe19c"				# KV 数据库 id
